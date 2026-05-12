@@ -12,12 +12,11 @@
         h1 { font-family: 'Orbitron', sans-serif; text-align: center; font-size: 22px; letter-spacing: 2px; color: var(--accent); text-shadow: 0 0 15px rgba(0, 210, 255, 0.5); margin-bottom: 25px; }
         .add-btn { background: linear-gradient(135deg, #0088cc, #00d2ff); color: white; border: none; padding: 15px; border-radius: 15px; width: 100%; font-weight: bold; font-family: 'Orbitron', sans-serif; cursor: pointer; box-shadow: 0 4px 15px rgba(0, 136, 204, 0.3); margin-bottom: 30px; transition: 0.3s; }
         .add-btn:active { transform: scale(0.98); }
-        .card { background: var(--card-bg); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; padding: 15px; margin-bottom: 15px; display: flex; align-items: center; animation: fadeIn 0.5s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .avatar-container { position: relative; width: 70px; height: 70px; margin-right: 15px; }
+        .card { background: var(--card-bg); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; padding: 15px; margin-bottom: 15px; display: flex; align-items: center; }
+        .avatar-container { position: relative; width: 70px; height: 70px; margin-right: 15px; flex-shrink: 0; }
         .avatar { width: 100%; height: 100%; border-radius: 15px; background: #222; border: 2px solid var(--accent); object-fit: cover; }
-        .info { flex-grow: 1; }
-        .nick { font-family: 'Orbitron', sans-serif; font-size: 16px; margin-bottom: 2px; }
+        .info { flex-grow: 1; min-width: 0; }
+        .nick { font-family: 'Orbitron', sans-serif; font-size: 16px; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
         .tg { color: #888; font-size: 13px; margin-bottom: 8px; display: block; }
         .ranks-container { display: flex; flex-wrap: wrap; gap: 5px; }
         .rank-tag { background: rgba(0, 210, 255, 0.1); color: var(--accent); border: 1px solid var(--accent); padding: 2px 8px; border-radius: 6px; font-size: 10px; text-transform: uppercase; font-weight: bold; cursor: pointer; }
@@ -36,7 +35,18 @@
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
+
         let members = [];
+
+        // ЗАГРУЗКА ИЗ ПАМЯТИ
+        const saved = localStorage.getItem('drk_clan_v1');
+        if (saved) {
+            members = JSON.parse(saved);
+        }
+
+        function save() {
+            localStorage.setItem('drk_clan_v1', JSON.stringify(members));
+        }
 
         function getRobloxId(url) {
             const match = url.match(/users\/(\d+)/);
@@ -48,23 +58,19 @@
             list.innerHTML = '';
             members.forEach((m, mIndex) => {
                 const robloxId = getRobloxId(m.profileUrl);
-                const avatarUrl = `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${robloxId}&size=150x150&format=Png&isCircular=false`;
-                const imgId = `img-${mIndex}`;
-                
-                fetch(avatarUrl).then(res => res.json()).then(data => {
-                    if(data.data && data.data[0]) document.getElementById(imgId).src = data.data[0].imageUrl;
-                });
+                // Прямая ссылка на аватар, которая лучше работает в браузерах
+                const avatarUrl = `https://www.roblox.com/headshot-thumbnail/image?userId=${robloxId}&width=150&height=150&format=png`;
 
                 list.innerHTML += `
                     <div class="card">
                         <div class="avatar-container">
-                            <img src="https://tr.rbxcdn.com/38c6edcf0663309a47348981452a8187/150/150/AvatarHeadshot/Png" id="${imgId}" class="avatar">
+                            <img src="${avatarUrl}" class="avatar" onerror="this.src='https://tr.rbxcdn.com/38c6edcf0663309a47348981452a8187/150/150/AvatarHeadshot/Png'">
                         </div>
                         <div class="info">
                             <span class="nick">${m.robloxNick}</span>
                             <span class="tg">${m.tgUser}</span>
                             <div class="ranks-container">
-                                ${m.ranks.map((r, rIndex) => `<span class="rank-tag" onclick="removeRank(${mIndex}, ${rIndex})" title="Нажми, чтобы убрать"> ${r} ✕</span>`).join('')}
+                                ${m.ranks.map((r, rIndex) => `<span class="rank-tag" onclick="removeRank(${mIndex}, ${rIndex})">${r} ✕</span>`).join('')}
                             </div>
                         </div>
                         <div class="controls">
@@ -81,8 +87,10 @@
             if(!url) return;
             const nick = prompt("Ник в Roblox:");
             const tgNick = prompt("Юзернейм в Телеграм (с @):");
+            
             if(url && nick && tgNick) {
                 members.push({ profileUrl: url, robloxNick: nick, tgUser: tgNick, ranks: [] });
+                save();
                 render();
             }
         };
@@ -90,18 +98,24 @@
         window.removeMember = (index) => {
             if(confirm("Изгнать участника из клана?")) {
                 members.splice(index, 1);
+                save();
                 render();
             }
         };
 
         window.addRank = (index) => {
-            const r = prompt("Название ранга:");
-            if(r) { members[index].ranks.push(r); render(); }
+            const r = prompt("Название ранга (например: Фармила недели):");
+            if(r) {
+                members[index].ranks.push(r);
+                save();
+                render();
+            }
         };
 
         window.removeRank = (mIndex, rIndex) => {
             if(confirm("Убрать этот ранг?")) {
                 members[mIndex].ranks.splice(rIndex, 1);
+                save();
                 render();
             }
         };
