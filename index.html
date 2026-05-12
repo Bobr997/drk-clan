@@ -38,15 +38,10 @@
 
         let members = [];
 
-        // ЗАГРУЗКА ИЗ ПАМЯТИ
         const saved = localStorage.getItem('drk_clan_v1');
-        if (saved) {
-            members = JSON.parse(saved);
-        }
+        if (saved) { members = JSON.parse(saved); }
 
-        function save() {
-            localStorage.setItem('drk_clan_v1', JSON.stringify(members));
-        }
+        function save() { localStorage.setItem('drk_clan_v1', JSON.stringify(members)); }
 
         function getRobloxId(url) {
             const match = url.match(/users\/(\d+)/);
@@ -58,7 +53,8 @@
             list.innerHTML = '';
             members.forEach((m, mIndex) => {
                 const robloxId = getRobloxId(m.profileUrl);
-                // Прямая ссылка на аватар, которая лучше работает в браузерах
+                
+                // ИСПОЛЬЗУЕМ НОВЫЙ ЭНДПОИНТ ТУТ
                 const avatarUrl = `https://www.roblox.com/headshot-thumbnail/image?userId=${robloxId}&width=150&height=150&format=png`;
 
                 list.innerHTML += `
@@ -104,7 +100,7 @@
         };
 
         window.addRank = (index) => {
-            const r = prompt("Название ранга (например: Фармила недели):");
+            const r = prompt("Название ранга:");
             if(r) {
                 members[index].ranks.push(r);
                 save();
