@@ -15,7 +15,7 @@
         .avatar-container { position: relative; width: 70px; height: 70px; margin-right: 15px; flex-shrink: 0; }
         .avatar { width: 100%; height: 100%; border-radius: 15px; background: #222; border: 2px solid var(--accent); object-fit: cover; }
         .info { flex-grow: 1; min-width: 0; }
-        .nick { font-family: 'Orbitron', sans-serif; font-size: 16px; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+        .nick { font-family: 'Orbitron', sans-serif; font-size: 16px; margin-bottom: 2px; }
         .tg { color: #888; font-size: 13px; margin-bottom: 8px; display: block; }
         .ranks-container { display: flex; flex-wrap: wrap; gap: 5px; }
         .rank-tag { background: rgba(0, 210, 255, 0.1); color: var(--accent); border: 1px solid var(--accent); padding: 2px 8px; border-radius: 6px; font-size: 10px; text-transform: uppercase; font-weight: bold; cursor: pointer; }
@@ -46,35 +46,44 @@
             return match ? match[1] : "1";
         }
 
-        function render() {
+        async function render() {
             const list = document.getElementById('clanList');
             list.innerHTML = '';
-            members.forEach((m, mIndex) => {
+            
+            for (let i = 0; i < members.length; i++) {
+                const m = members[i];
                 const robloxId = getRobloxId(m.profileUrl);
+                const imgId = `img-${i}`;
                 
-                // Используем специальный прокси-сервис для обхода блокировок
-                const originalUrl = `https://www.roblox.com/headshot-thumbnail/image?userId=${robloxId}&width=150&height=150&format=png`;
-                const avatarUrl = `https://images.weserv.nl/?url=${encodeURIComponent(originalUrl)}`;
-
+                // Используем прямое API Thumbnails
+                const thumbApi = `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${robloxId}&size=150x150&format=Png&isCircular=false`;
+                
                 list.innerHTML += `
                     <div class="card">
                         <div class="avatar-container">
-                            <img src="${avatarUrl}" class="avatar" onerror="this.src='https://tr.rbxcdn.com/38c6edcf0663309a47348981452a8187/150/150/AvatarHeadshot/Png'">
+                            <img src="https://tr.rbxcdn.com/38c6edcf0663309a47348981452a8187/150/150/AvatarHeadshot/Png" id="${imgId}" class="avatar">
                         </div>
                         <div class="info">
                             <span class="nick">${m.robloxNick}</span>
                             <span class="tg">${m.tgUser}</span>
                             <div class="ranks-container">
-                                ${m.ranks.map((r, rIndex) => `<span class="rank-tag" onclick="removeRank(${mIndex}, ${rIndex})">${r} ✕</span>`).join('')}
+                                ${m.ranks.map((r, rIndex) => `<span class="rank-tag" onclick="removeRank(${i}, ${rIndex})">${r} ✕</span>`).join('')}
                             </div>
                         </div>
                         <div class="controls">
-                            <button class="btn-small btn-rank" onclick="addRank(${mIndex})">+ Ранг</button>
-                            <button class="btn-small btn-del" onclick="removeMember(${mIndex})">Удалить</button>
+                            <button class="btn-small btn-rank" onclick="addRank(${i})">+ Ранг</button>
+                            <button class="btn-small btn-del" onclick="removeMember(${i})">Удалить</button>
                         </div>
                     </div>
                 `;
-            });
+
+                // Загружаем реальное фото через API
+                fetch(thumbApi).then(res => res.json()).then(data => {
+                    if(data.data && data.data[0]) {
+                        document.getElementById(imgId).src = data.data[0].imageUrl;
+                    }
+                }).catch(err => console.log("Ошибка загрузки скина"));
+            }
         }
 
         document.getElementById('addMemberBtn').onclick = () => {
