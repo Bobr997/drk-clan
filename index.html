@@ -11,31 +11,41 @@
     <style>
         :root { --bg: #0f0f13; --card-bg: rgba(255, 255, 255, 0.05); --accent: #00d2ff; --danger: #ff4757; --text: #ffffff; }
         body { font-family: 'Roboto', sans-serif; background-color: var(--bg); background-image: radial-gradient(circle at top right, #1a1a2e, #0f0f13); color: var(--text); margin: 0; padding: 20px; min-height: 100vh; }
-        h1 { font-family: 'Orbitron', sans-serif; text-align: center; font-size: 22px; letter-spacing: 2px; color: var(--accent); text-shadow: 0 0 15px rgba(0, 210, 255, 0.5); margin-bottom: 25px; }
+        h1 { font-family: 'Orbitron', sans-serif; text-align: center; font-size: 22px; color: var(--accent); text-shadow: 0 0 15px rgba(0, 210, 255, 0.5); margin-bottom: 25px; }
+        
+        /* Скрываем кнопки админа по умолчанию */
+        .add-btn, .controls { display: none; }
+        
         .add-btn { background: linear-gradient(135deg, #0088cc, #00d2ff); color: white; border: none; padding: 15px; border-radius: 15px; width: 100%; font-weight: bold; font-family: 'Orbitron', sans-serif; cursor: pointer; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0, 136, 204, 0.3); }
         .card { background: var(--card-bg); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; padding: 15px; margin-bottom: 15px; display: flex; align-items: center; }
-        /* Иконка: белый круг + черная надпись DRK */
-        .clan-icon { width: 65px; height: 65px; border-radius: 50%; background: #ffffff; display: flex; align-items: center; justify-content: center; margin-right: 15px; flex-shrink: 0; border: 2px solid var(--accent); box-shadow: 0 0 10px rgba(0, 210, 255, 0.2); }
+        
+        .clan-icon { width: 65px; height: 65px; border-radius: 50%; background: #ffffff; display: flex; align-items: center; justify-content: center; margin-right: 15px; flex-shrink: 0; border: 2px solid var(--accent); }
         .clan-icon span { color: #000000; font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 14px; }
+        
         .info { flex-grow: 1; min-width: 0; }
         .nick { font-family: 'Orbitron', sans-serif; font-size: 16px; display: block; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .tg { color: #888; font-size: 13px; margin-bottom: 8px; display: block; }
+        
         .ranks-container { display: flex; flex-wrap: wrap; gap: 5px; }
         .rank-tag { background: rgba(0, 210, 255, 0.1); color: var(--accent); border: 1px solid var(--accent); padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; }
-        .controls { display: flex; flex-direction: column; gap: 5px; margin-left: 10px; }
-        .btn-small { border: none; border-radius: 8px; padding: 6px; font-size: 10px; cursor: pointer; font-weight: bold; text-transform: uppercase; }
+        
+        .controls { flex-direction: column; gap: 5px; margin-left: 10px; }
+        .btn-small { border: none; border-radius: 8px; padding: 6px; font-size: 10px; cursor: pointer; font-weight: bold; }
         .btn-rank { background: #2f3542; color: #a4b0be; }
         .btn-del { background: rgba(255, 71, 87, 0.2); color: var(--danger); }
+
+        /* Показываем кнопки только админам */
+        body.is-admin .add-btn { display: block; }
+        body.is-admin .controls { display: flex; }
     </style>
 </head>
-<body>
+<body id="mainBody">
 
-    <h1>DRK CLAN</h1>
+    <h1 id="mainTitle">DRK CLAN</h1>
     <button class="add-btn" id="addMemberBtn">➕ ДОБАВИТЬ УЧАСТНИКА</button>
     <div id="clanList"></div>
 
     <script>
-        // Твои ПОЛНЫЕ настройки Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyAQqmU9so_qlSkge_k-Rva5fFP-ISFyNlE",
             authDomain: "drk-clan.firebaseapp.com",
@@ -46,11 +56,21 @@
             appId: "1:67854545656:web:db19ea6007af934a0e810d"
         };
 
-        // Инициализация
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         const tg = window.Telegram.WebApp;
         tg.expand();
+
+        // --- ПРОВЕРКА АДМИНА ---
+        const admins = [7066598204, 7077313803]; // Твои ID
+        const userId = tg.initDataUnsafe?.user?.id;
+        const isAdmin = admins.includes(userId);
+
+        if (isAdmin) {
+            document.getElementById('mainBody').classList.add('is-admin');
+            document.getElementById('mainTitle').innerText = "DRK (ADMIN PANEL)";
+        }
+        // -----------------------
 
         function render(membersObj) {
             const list = document.getElementById('clanList');
@@ -67,7 +87,10 @@
                             <span class="nick">${m.robloxNick}</span>
                             <span class="tg">${m.tgUser}</span>
                             <div class="ranks-container">
-                                ${ranks.map((r, ri) => `<span class="rank-tag" onclick="removeRank('${id}', ${ri})">${r} ✕</span>`).join('')}
+                                ${ranks.map((r, ri) => `
+                                    <span class="rank-tag" ${isAdmin ? `onclick="removeRank('${id}', ${ri})"` : ''}>
+                                        ${r} ${isAdmin ? '✕' : ''}
+                                    </span>`).join('')}
                             </div>
                         </div>
                         <div class="controls">
@@ -79,27 +102,26 @@
             });
         }
 
-        // Слушаем базу
         db.ref('members').on('value', (snapshot) => {
             render(snapshot.val());
         });
 
         document.getElementById('addMemberBtn').onclick = () => {
+            if(!isAdmin) return;
             const nick = prompt("Ник в Roblox:");
-            const tgNick = prompt("Юзернейм в Телеграм (например, @nick):");
+            const tgNick = prompt("Юзернейм в ТГ:");
             if (nick && tgNick) {
-                db.ref('members').push({
-                    robloxNick: nick,
-                    tgUser: tgNick,
-                    ranks: []
-                });
+                db.ref('members').push({ robloxNick: nick, tgUser: tgNick, ranks: [] });
             }
         };
 
-        window.removeMember = (id) => { if(confirm("Удалить из клана?")) db.ref('members/' + id).remove(); };
+        window.removeMember = (id) => {
+            if(isAdmin && confirm("Удалить игрока из списка?")) db.ref('members/' + id).remove();
+        };
         
         window.addRank = (id) => {
-            const r = prompt("Введите ранг:");
+            if(!isAdmin) return;
+            const r = prompt("Название ранга:");
             if(r) {
                 db.ref('members/' + id + '/ranks').once('value').then(s => {
                     let ranks = s.val() || [];
@@ -110,7 +132,7 @@
         };
 
         window.removeRank = (id, ri) => {
-            if(confirm("Удалить ранг?")) {
+            if(isAdmin && confirm("Удалить этот ранг?")) {
                 db.ref('members/' + id + '/ranks').once('value').then(s => {
                     let ranks = s.val() || [];
                     ranks.splice(ri, 1);
